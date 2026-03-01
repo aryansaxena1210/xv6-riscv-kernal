@@ -134,6 +134,8 @@ UPROGS=\
 	$U/_zombie\
 	$U/_relay_sample\
 	$U/_relay_plus\
+	$U/_procmon\
+
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

@@ -92,7 +92,14 @@ enum procstate
   ZOMBIE
 };
 
+// extra procstate info
+typedef enum procstate_extra
+{
+  UNBLOCKED,
+  BLOCKED
+} procstate_extra_t;
 // Per-process state
+
 struct proc
 {
   struct spinlock lock;
@@ -116,6 +123,22 @@ struct proc
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  // extra stuff from me
+  procstate_extra_t state_extra;
+
+  int cpuTicks;        // timer interrupts while RUNNING
+  int syscallCount;    // number of system calls made
+  int contextSwitches; // times scheduled (given CPU)
+  int sleepCount;      // times voluntarily slept
+};
+
+struct resource_usage
+{
+  int cpuTicks;
+  int syscallCount;
+  int contextSwitches;
+  int sleepCount;
 };
 
 struct proc_info

@@ -37,3 +37,6 @@ entry("sbrk");
 entry("sleep");
 entry("uptime");
 entry("getprocinfo");
+entry("blockchild");
+entry("unblockchild");
+entry("getresourceusage");

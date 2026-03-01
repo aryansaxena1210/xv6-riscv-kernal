@@ -98,6 +98,10 @@ extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_getprocinfo(void);
+extern uint64 sys_blockchild(void);
+extern uint64 sys_unblockchild(void);
+extern uint64 sys_getresourceusage(void);
+
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
 static uint64 (*syscalls[])(void) = {
@@ -123,6 +127,9 @@ static uint64 (*syscalls[])(void) = {
     [SYS_mkdir] sys_mkdir,
     [SYS_close] sys_close,
     [SYS_getprocinfo] sys_getprocinfo,
+    [SYS_blockchild] sys_blockchild,
+    [SYS_unblockchild] sys_unblockchild,
+    [SYS_getresourceusage] sys_getresourceusage,
 };
 
 void syscall(void)

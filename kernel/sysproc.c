@@ -110,3 +110,22 @@ uint64 sys_getprocinfo(void)
     return -1;
   return 0;
 }
+
+uint64 sys_getresourceusage(void)
+{
+  struct proc *p = myproc();
+  struct resource_usage usage;
+  uint64 uaddr;
+
+  usage.cpuTicks = p->cpuTicks;
+  usage.syscallCount = p->syscallCount;
+  usage.contextSwitches = p->contextSwitches;
+  usage.sleepCount = p->sleepCount;
+
+  argaddr(0, &uaddr);
+
+  if (copyout(p->pagetable, uaddr, (char *)&usage, sizeof(usage)) < 0)
+    return -1;
+
+  return p->pid; // returns PID on success per spec
+}

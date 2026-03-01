@@ -40,6 +40,9 @@ int atoi(const char *);
 int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
 
+int pause(int); // my stuff
+
+// my stuff, not from source code (extras...)
 // same as that in kernal/proc.h
 struct proc_info
 {
@@ -49,12 +52,15 @@ struct proc_info
     uint64 sz;
 };
 
-int getprocinfo(struct proc_info *info);
-
-typedef enum procstate_extra
+struct resource_usage
 {
-    UNBLOCKED,
-    BLOCKED
-} procstate_extra_t;
+    int cpuTicks;
+    int syscallCount;
+    int contextSwitches;
+    int sleepCount;
+};
 
-procstate_extra_t state_extra;
+int getprocinfo(struct proc_info *info);
+int blockchild(int pid);
+int unblockchild(int pid);
+int getresourceusage(struct resource_usage *usage);
