@@ -141,7 +141,8 @@ struct proc
   int priority_level;                     // current priority level (0 = highest)
   int ticks_run;                          // ticks run on current priority level
   int ticks_waited;                       // ticks waited on current priority level
-  int tickCounts[PRIORITY_MAX_LEVEL];     // total ticks run at each level (for getPriorityInfo)  
+  int tickCounts[PRIORITY_MAX_LEVEL];     // total ticks run at each level (for getPriorityInfo) 
+  int is_new; 
 };
 
 struct resource_usage

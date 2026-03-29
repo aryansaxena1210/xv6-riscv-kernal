@@ -67,6 +67,10 @@ int unblockchild(int pid);
 int getresourceusage(struct resource_usage *usage);
 
 //priority scheduler
+#define PRIORITY_MAX_LEVEL 10
+struct PriorityInfoReport {
+    int tickCounts[PRIORITY_MAX_LEVEL];
+};
 int startPriority(int m, int n);
 int stopPriority(void);
 int getPriorityInfo(struct PriorityInfoReport *report);

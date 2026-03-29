@@ -197,8 +197,10 @@ freeproc(struct proc *p)
   p->priority_level = 0;
   p->ticks_run = 0;
   p->ticks_waited = 0;
+  p->is_new = 1;
   for (int i = 0; i < PRIORITY_MAX_LEVEL; i++)
     p->tickCounts[i] = 0;
+  
 
 }
 
@@ -329,6 +331,14 @@ int fork(void)
     return -1;
   }
   np->sz = p->sz;
+  np->is_new = 1;
+  np->in_priority_queue = 0;
+  np->ticks_run = 0;
+  np->ticks_waited = 0;
+  np->priority_level = 0;
+  for (int i = 0; i < PRIORITY_MAX_LEVEL; i++)
+    np->tickCounts[i] = 0;
+
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
@@ -515,17 +525,20 @@ Priority_scheduler(struct cpu *c)
 
   while (priorityFlag) {
 
-    // Step 1: Add any RUNNABLE processes not yet in a queue
-    // Rule 2: new processes start at M/2
+    //STEP1 - (rule 2) : scan table for RUNNABLE procs not yet in priority queue. New proc priority level is M/2
     for (struct proc *np = proc; np < &proc[NPROC]; np++) {
       acquire(&np->lock);
       if (np->state == RUNNABLE && !np->in_priority_queue) {
-        priority_enqueue(M / 2, np);
+        if (np->is_new) {
+          np->priority_level = M / 2;
+          np->is_new = 0;
+        }
+        priority_enqueue(np->priority_level, np);
       }
       release(&np->lock);
     }
 
-    // Step 2: Select highest-priority RUNNABLE process (if none selected)
+    //STEP 2 - (rule 3) - if no proc selected, find highest priority proc-level and then roundrobin in that level
     if (p == 0) {
       for (int i = 0; i < M; i++) {
         struct pq_node *node = queues[i];
@@ -540,25 +553,24 @@ Priority_scheduler(struct cpu *c)
       }
     }
 
-    // Step 3: Run the selected process for one tick
+    // Step 3: Runn the selected process for one tick.
     if (p != 0 && p->state == RUNNABLE) {
       acquire(&p->lock);
       p->state = RUNNING;
       c->proc = p;
       swtch(&c->context, &p->context);
-      // ONE TICK HAS PASSED — timer fired, process yielded back
+      //every return from swtch is one tick as explain in comments above this function's declaration
       p->ticks_run++;
       p->tickCounts[p->priority_level]++;
       c->proc = 0;
       release(&p->lock);
     }
 
-    // Step 4: Check if process used up its quantum
-    // Rule 3: quantum = 2*(level+1) ticks
-    // Rule 4: degrade priority if quantum exhausted
+    // Step 4 (Rules 3 & 4): Post-tick accounting.
+    // If the proces is no longer RUNNABLE (e.g. sleeping or exited), remove it
+    // from the queue and deselectt. If it exhausted its time quantum at level x, degrade priority
     if (p != 0) {
       if (p->state != RUNNABLE) {
-        // process went to sleep or exited, remove from queue
         if (p->in_priority_queue)
           priority_delete(p->priority_level, p);
         p = 0;
@@ -570,18 +582,18 @@ Priority_scheduler(struct cpu *c)
           p->ticks_run = 0;
           int next_level = (level < M - 1) ? level + 1 : level;
           priority_enqueue(next_level, p);
-          p = 0;  // reselect next iteration
+          p = 0;
         }
       }
     }
 
-    // Step 5: Aging — Rule 5
-    // Boost processes that have waited >= N ticks at level x to x-1
+    // Step 5 (Rule 5 - Aging): Increment wait ticks for all queued processes
+    // taht are not curently running. 
     for (int i = 1; i < M; i++) {
       struct pq_node *node = queues[i];
       while (node != 0) {
         struct pq_node *next = node->next;
-        if (node->p != p) {  // don't age the currently running process
+        if (node->p != p) {
           node->p->ticks_waited++;
           if (node->p->ticks_waited >= N) {
             struct proc *boosted = node->p;
@@ -594,7 +606,7 @@ Priority_scheduler(struct cpu *c)
       }
     }
 
-  } // end while(priorityFlag)
+  }
 }
 
 
@@ -631,8 +643,17 @@ startPriority(int m, int n)
 void
 stopPriority(void)
 {
+  // Remove all processes from priority queues so RR can schedule them
+  for (int i = 0; i < M; i++) {
+    while (queues[i] != 0) {
+      struct proc *p = queues[i]->p;
+      priority_dequeue(i);
+      p->in_priority_queue = 0;
+    }
+  }
   priorityFlag = 0;
 }
+
 
 // Fills in report with tick counts for the calling process.
 int
@@ -928,11 +949,18 @@ priority_enqueue(int level, struct proc *p)
 {
   struct pq_node *node = (struct pq_node *)kalloc();
   node->p = p;
+  node->next = 0;
   node->prev = 0;
-  node->next = queues[level];
-  if (queues[level] != 0)
-    queues[level]->prev = node;
-  queues[level] = node;
+
+  if (queues[level] == 0) {
+    queues[level] = node;
+  } else {
+    struct pq_node *tail = queues[level];
+    while (tail->next != 0)
+      tail = tail->next;
+    tail->next = node;
+    node->prev = tail;
+  }
   p->in_priority_queue = 1;
   p->priority_level = level;
   p->ticks_waited = 0;

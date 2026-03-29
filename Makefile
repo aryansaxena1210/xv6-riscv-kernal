@@ -135,6 +135,7 @@ UPROGS=\
 	$U/_relay_sample\
 	$U/_relay_plus\
 	$U/_procmon\
+	$U/_testsyscall\
 
 
 fs.img: mkfs/mkfs README $(UPROGS)
