@@ -40,3 +40,7 @@ entry("getprocinfo");
 entry("blockchild");
 entry("unblockchild");
 entry("getresourceusage");
+# priority scheduler
+entry("startPriority");
+entry("stopPriority");
+entry("getPriorityInfo");

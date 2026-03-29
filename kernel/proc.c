@@ -506,8 +506,41 @@ scheduler(void)
       Priority_scheduler(c);
     } else {
       RR_scheduler(c);
-    }
+    } 
   }
+}
+
+
+// Starts the priority scheduler with M levels and aging threshold N.
+void
+startPriority(int m, int n)
+{
+  M = m;
+  N = n;
+  // Initialize all queues to empty
+  for (int i = 0; i < M; i++)
+    queues[i] = 0;
+  priorityFlag = 1;
+}
+
+// Stops the priority scheduler and resumes RR.
+void
+stopPriority(void)
+{
+  priorityFlag = 0;
+}
+
+// Fills in report with tick counts for the calling process.
+int
+getPriorityInfo(uint64 addr)
+{
+  struct proc *p = myproc();
+  struct PriorityInfoReport report;
+  for (int i = 0; i < PRIORITY_MAX_LEVEL; i++)
+    report.tickCounts[i] = p->tickCounts[i];
+  if (copyout(p->pagetable, addr, (char *)&report, sizeof(report)) < 0)
+    return -1;
+  return 0;
 }
 
 

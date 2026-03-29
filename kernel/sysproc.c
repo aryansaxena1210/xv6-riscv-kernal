@@ -129,3 +129,33 @@ uint64 sys_getresourceusage(void)
 
   return p->pid; // returns PID on success per spec
 }
+
+
+
+// Starts the priority scheduler with m levels and aging threshold n.
+uint64
+sys_startPriority(void)
+{
+  int m, n;
+  argint(0, &m);
+  argint(1, &n);
+  startPriority(m, n);
+  return 0;
+}
+
+// Stops the priority scheduler and resumes RR.
+uint64
+sys_stopPriority(void)
+{
+  stopPriority();
+  return 0;
+}
+
+// Fills in the report with tick counts at each priority level.
+uint64
+sys_getPriorityInfo(void)
+{
+  uint64 addr;
+  argaddr(0, &addr);
+  return getPriorityInfo(addr);
+}

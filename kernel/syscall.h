@@ -24,3 +24,6 @@
 #define SYS_blockchild 26
 #define SYS_unblockchild 27
 #define SYS_getresourceusage 28
+#define SYS_startPriority  29
+#define SYS_stopPriority   30
+#define SYS_getPriorityInfo 31

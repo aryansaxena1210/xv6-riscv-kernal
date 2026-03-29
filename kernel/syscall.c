@@ -101,6 +101,10 @@ extern uint64 sys_getprocinfo(void);
 extern uint64 sys_blockchild(void);
 extern uint64 sys_unblockchild(void);
 extern uint64 sys_getresourceusage(void);
+extern uint64 sys_startPriority(void);
+extern uint64 sys_stopPriority(void);
+extern uint64 sys_getPriorityInfo(void);
+
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -130,6 +134,9 @@ static uint64 (*syscalls[])(void) = {
     [SYS_blockchild] sys_blockchild,
     [SYS_unblockchild] sys_unblockchild,
     [SYS_getresourceusage] sys_getresourceusage,
+    [SYS_startPriority]   sys_startPriority,
+    [SYS_getPriorityInfo] sys_getPriorityInfo,
+    [SYS_stopPriority]    sys_stopPriority,
 };
 
 void syscall(void)

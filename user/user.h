@@ -1,3 +1,4 @@
+struct PriorityInfoReport;
 struct stat;
 
 // system calls
@@ -64,3 +65,9 @@ int getprocinfo(struct proc_info *info);
 int blockchild(int pid);
 int unblockchild(int pid);
 int getresourceusage(struct resource_usage *usage);
+
+//priority scheduler
+int startPriority(int m, int n);
+int stopPriority(void);
+int getPriorityInfo(struct PriorityInfoReport *report);
+
