@@ -6,7 +6,10 @@
 #include "proc.h"
 #include "defs.h"
 
-
+//forward declaration
+void priority_enqueue(int level, struct proc *p);
+void priority_dequeue(int level);
+void priority_delete(int level, struct proc *p);
 // stuff form me -  Priority Scheduler globals
 int priorityFlag = 0;                          // 1 if priority scheduler is active
 int M = 0;                                     // number of priority levels
@@ -188,6 +191,15 @@ freeproc(struct proc *p)
   p->syscallCount = 0;
   p->contextSwitches = 0;
   p->sleepCount = 0;
+
+  //priority scheduler 
+  p->in_priority_queue = 0;
+  p->priority_level = 0;
+  p->ticks_run = 0;
+  p->ticks_waited = 0;
+  for (int i = 0; i < PRIORITY_MAX_LEVEL; i++)
+    p->tickCounts[i] = 0;
+
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -487,12 +499,104 @@ RR_scheduler(struct cpu *c)
 }
 
 
-// Priority-based scheduler with aging (stub for now).
+// my stff - Priority-based scheduler with aging 
+// NOTE - Tick Accounting Fix:
+// Originally, the ticks were incremented at the top of the scheduler loop. This is
+// incorrect since the while loop simply runs freely and is not related to the hardware
+// timer. In xv6, one tick = one hardware timer interrupt. The timer interrupts,
+// which then call usertrap() -> yield() -> sched() -> swtch() back to the
+// scheduler. Therefore, swtch() returning is the exact point where we know one tick
+// has passed. As a result, ticks_run and tickCounts are now incremented immediately
+// after swtch() returns.
 void
 Priority_scheduler(struct cpu *c)
 {
-  // TODO: implement in next step
+  struct proc *p = 0;
+
+  while (priorityFlag) {
+
+    // Step 1: Add any RUNNABLE processes not yet in a queue
+    // Rule 2: new processes start at M/2
+    for (struct proc *np = proc; np < &proc[NPROC]; np++) {
+      acquire(&np->lock);
+      if (np->state == RUNNABLE && !np->in_priority_queue) {
+        priority_enqueue(M / 2, np);
+      }
+      release(&np->lock);
+    }
+
+    // Step 2: Select highest-priority RUNNABLE process (if none selected)
+    if (p == 0) {
+      for (int i = 0; i < M; i++) {
+        struct pq_node *node = queues[i];
+        while (node != 0) {
+          if (node->p->state == RUNNABLE) {
+            p = node->p;
+            break;
+          }
+          node = node->next;
+        }
+        if (p != 0) break;
+      }
+    }
+
+    // Step 3: Run the selected process for one tick
+    if (p != 0 && p->state == RUNNABLE) {
+      acquire(&p->lock);
+      p->state = RUNNING;
+      c->proc = p;
+      swtch(&c->context, &p->context);
+      // ONE TICK HAS PASSED — timer fired, process yielded back
+      p->ticks_run++;
+      p->tickCounts[p->priority_level]++;
+      c->proc = 0;
+      release(&p->lock);
+    }
+
+    // Step 4: Check if process used up its quantum
+    // Rule 3: quantum = 2*(level+1) ticks
+    // Rule 4: degrade priority if quantum exhausted
+    if (p != 0) {
+      if (p->state != RUNNABLE) {
+        // process went to sleep or exited, remove from queue
+        if (p->in_priority_queue)
+          priority_delete(p->priority_level, p);
+        p = 0;
+      } else {
+        int level = p->priority_level;
+        int quantum = 2 * (level + 1);
+        if (p->ticks_run >= quantum) {
+          priority_delete(level, p);
+          p->ticks_run = 0;
+          int next_level = (level < M - 1) ? level + 1 : level;
+          priority_enqueue(next_level, p);
+          p = 0;  // reselect next iteration
+        }
+      }
+    }
+
+    // Step 5: Aging — Rule 5
+    // Boost processes that have waited >= N ticks at level x to x-1
+    for (int i = 1; i < M; i++) {
+      struct pq_node *node = queues[i];
+      while (node != 0) {
+        struct pq_node *next = node->next;
+        if (node->p != p) {  // don't age the currently running process
+          node->p->ticks_waited++;
+          if (node->p->ticks_waited >= N) {
+            struct proc *boosted = node->p;
+            priority_delete(i, boosted);
+            boosted->ticks_run = 0;
+            priority_enqueue(i - 1, boosted);
+          }
+        }
+        node = next;
+      }
+    }
+
+  } // end while(priorityFlag)
 }
+
 
 // Main scheduler — dispatches to priority or RR based on priorityFlag.
 void
