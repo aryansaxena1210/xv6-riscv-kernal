@@ -470,39 +470,48 @@ int wait(uint64 addr)
 //  - swtch to start running that process.
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
-void scheduler(void)
+void
+RR_scheduler(struct cpu *c)
 {
   struct proc *p;
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state == RUNNABLE) {
+      p->state = RUNNING;
+      c->proc = p;
+      swtch(&c->context, &p->context);
+      c->proc = 0;
+    }
+    release(&p->lock);
+  }
+}
+
+
+// Priority-based scheduler with aging (stub for now).
+void
+Priority_scheduler(struct cpu *c)
+{
+  // TODO: implement in next step
+}
+
+// Main scheduler — dispatches to priority or RR based on priorityFlag.
+void
+scheduler(void)
+{
   struct cpu *c = mycpu();
-
   c->proc = 0;
-  for (;;)
-  {
-    // Avoid deadlock by ensuring that devices can interrupt.
+  for (;;) {
     intr_on();
-
-    for (p = proc; p < &proc[NPROC]; p++)
-    {
-      acquire(&p->lock);
-      if (p->state == RUNNABLE && p->state_extra == UNBLOCKED)
-      {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        p->contextSwitches++; // context about to switch
-        c->proc = p;
-
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-      }
-      release(&p->lock);
+    if (priorityFlag) {
+      Priority_scheduler(c);
+    } else {
+      RR_scheduler(c);
     }
   }
 }
+
+
+
 
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -767,7 +776,7 @@ sys_unblockchild(void)
 
   if (child->state == ZOMBIE || child->state == UNUSED)
     return -1;
-
+ 
   if (child->state_extra != BLOCKED)
     return -1; // not currently blocked
 
@@ -824,3 +833,7 @@ priority_delete(int level, struct proc *p)
     node = node->next;
   }
 }
+
+
+
+//stuff from me - priority queue scheduler
