@@ -6,6 +6,13 @@
 #include "proc.h"
 #include "defs.h"
 
+
+// stuff form me -  Priority Scheduler globals
+int priorityFlag = 0;                          // 1 if priority scheduler is active
+int M = 0;                                     // number of priority levels
+int N = 0;                                     // aging threshold in ticks
+struct pq_node *queues[PRIORITY_MAX_LEVEL];    // head of each priority level's linked list
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -766,4 +773,54 @@ sys_unblockchild(void)
 
   child->state_extra = UNBLOCKED;
   return 0;
+}
+
+
+//stuff form me - priority scheduler helpers 
+void
+priority_enqueue(int level, struct proc *p)
+{
+  struct pq_node *node = (struct pq_node *)kalloc();
+  node->p = p;
+  node->prev = 0;
+  node->next = queues[level];
+  if (queues[level] != 0)
+    queues[level]->prev = node;
+  queues[level] = node;
+  p->in_priority_queue = 1;
+  p->priority_level = level;
+  p->ticks_waited = 0;
+}
+
+void
+priority_dequeue(int level)
+{
+  if (queues[level] == 0)
+    return;
+  struct pq_node *node = queues[level];
+  queues[level] = node->next;
+  if (queues[level] != 0)
+    queues[level]->prev = 0;
+  node->p->in_priority_queue = 0;
+  kfree((void *)node);
+}
+
+void
+priority_delete(int level, struct proc *p)
+{
+  struct pq_node *node = queues[level];
+  while (node != 0) {
+    if (node->p == p) {
+      if (node->prev != 0)
+        node->prev->next = node->next;
+      else
+        queues[level] = node->next;
+      if (node->next != 0)
+        node->next->prev = node->prev;
+      p->in_priority_queue = 0;
+      kfree((void *)node);
+      return;
+    }
+    node = node->next;
+  }
 }
