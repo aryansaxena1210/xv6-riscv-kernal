@@ -1,3 +1,6 @@
+// Stuff from me
+#define PRIORITY_MAX_LEVEL 10
+
 // Saved registers for kernel context switches.
 struct context
 {
@@ -131,6 +134,14 @@ struct proc
   int syscallCount;    // number of system calls made
   int contextSwitches; // times scheduled (given CPU)
   int sleepCount;      // times voluntarily slept
+
+  // more stuff from me 
+  //priority scheduler
+  int in_priority_queue;                  // flag - 1 if process is in a priority queue
+  int priority_level;                     // current priority level (0 = highest)
+  int ticks_run;                          // ticks run on current priority level
+  int ticks_waited;                       // ticks waited on current priority level
+  int tickCounts[PRIORITY_MAX_LEVEL];     // total ticks run at each level (for getPriorityInfo)  
 };
 
 struct resource_usage
@@ -148,3 +159,15 @@ struct proc_info
   int state; // current process state (enum procstate value)
   uint64 sz; // size of process memory (bytes)
 };
+
+//stuff from me 
+struct PriorityInfoReport {
+    int tickCounts[PRIORITY_MAX_LEVEL];
+};
+
+struct pq_node {
+    struct proc *p;
+    struct pq_node *next;
+    struct pq_node *prev;
+};
+
